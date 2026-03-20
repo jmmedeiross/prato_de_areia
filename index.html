@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html>
 <head>
 
@@ -14,95 +14,57 @@ body{
 margin:0;
 background:black;
 overflow:hidden;
-font-family:-apple-system,BlinkMacSystemFont,Arial;
+font-family:Arial;
 }
 
-/* CONTROLES */
-
+/* CONTROLES - AGORA NO CANTO INFERIOR DIREITO */
 #controls{
-
 position:fixed;
 bottom:20px;
 right:20px;
-
-background:rgba(255,255,255,0.06);
-backdrop-filter:blur(16px);
-
-padding:14px 16px;
-border-radius:16px;
-
+background:rgba(255,255,255,0.05);
+backdrop-filter:blur(10px);
+padding:12px;
+border-radius:10px;
+font-size:12px;
 color:white;
-font-size:11px;
+}
 
+#controls div{
+margin-bottom:10px;
 }
 
 input[type=range]{
 -webkit-appearance:none;
-width:130px;
+width:120px;
 height:2px;
-background:rgba(255,255,255,0.25);
+background:rgba(255,255,255,0.4);
 }
 
 input[type=range]::-webkit-slider-thumb{
 -webkit-appearance:none;
-width:12px;
-height:12px;
+width:14px;
+height:14px;
 border-radius:50%;
 background:white;
 }
 
-/* POPUP */
-
-#popup{
-
+/* FRASE INICIAL */
+#intro{
 position:fixed;
-top:0;
-left:0;
-
-width:100%;
-height:100%;
-
-display:flex;
-align-items:center;
-justify-content:center;
-
-background:rgba(0,0,0,0.4);
-backdrop-filter:blur(10px);
-
-transition:opacity 0.6s;
-
-z-index:10;
-
-}
-
-.popup-box{
-
-background:rgba(255,255,255,0.05);
-backdrop-filter:blur(20px);
-
-padding:20px 28px;
-border-radius:18px;
-
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
 color:white;
+font-size:18px;
 text-align:center;
-
-font-size:14px;
-line-height:1.4;
-
+opacity:1;
+transition:opacity 0.6s ease;
+pointer-events:none;
 }
 
-.mobile{ display:none; }
-
-@media (max-width:600px){
-
-.mobile{ display:block; }
-.desktop{ display:none; }
-
-#controls{
-bottom:10px;
-right:10px;
-}
-
+.hidden{
+opacity:0;
 }
 
 </style>
@@ -111,56 +73,45 @@ right:10px;
 
 <body>
 
-<!-- POPUP -->
-
-<div id="popup">
-<div class="popup-box">
-
-<div class="desktop">
-Clique na tela para iniciar experiência
+<div id="intro">
+Ative o som e toque na tela para iniciar experiencia.
 </div>
-
-<div class="mobile">
-Ative o som e toque na tela para iniciar experiência.<br>
-</div>
-
-</div>
-</div>
-
-<!-- CONTROLES -->
 
 <div id="controls">
 
 <div>
 Areia<br>
-<input type="range" id="density" min="3000" max="20000" value="9000">
+<input type="range" id="density" min="20000" max="80000" value="40000">
 </div>
 
 <div>
 Movimento<br>
-<input type="range" id="motion" min="0.1" max="2" step="0.1" value="0.6">
+<input type="range" id="motion" min="0.00002" max="0.0008" step="0.00002" value="0.0002">
 </div>
 
 </div>
 
 <script>
 
+let song
+let fft
+
 let particles=[]
-let particleCount=9000
+let particleCount=40000
 
-let motion=0.6
+let motion=0.0002
 
-let cx, cy, radius
+let radialMode=3
+let angularMode=6
 
-let song, fft
+let targetRadial=3
+let targetAngular=6
+
+let isPlaying=false
 let started=false
+let lastChange=0
 
-let popup = document.getElementById("popup")
-
-let m=4
-let n=3
-
-let energySmooth=0
+let plateRadius
 
 function preload(){
 song = loadSound("song.mp3")
@@ -170,16 +121,13 @@ function setup(){
 
 createCanvas(window.innerWidth,window.innerHeight)
 
-cx = width/2
-cy = height/2
-radius = min(width,height)*0.45
+fft = new p5.FFT(0.8,256)
 
-fft = new p5.FFT(0.85,512)
+plateRadius=min(width,height)*0.45
 
 createParticles()
 
 stroke(230,210,160)
-strokeWeight(1.3)
 
 }
 
@@ -189,15 +137,16 @@ particles=[]
 
 for(let i=0;i<particleCount;i++){
 
-let a=random(TWO_PI)
-let r=sqrt(random())*radius
+let angle=random(TWO_PI)
+let r=sqrt(random())*0.5
 
 particles.push({
 
-x:cx + cos(a)*r,
-y:cy + sin(a)*r,
-vx:random(-1,1),
-vy:random(-1,1)
+x:0.5 + cos(angle)*r,
+y:0.5 + sin(angle)*r,
+
+vx:random(-0.001,0.001),
+vy:random(-0.001,0.001)
 
 })
 
@@ -205,23 +154,21 @@ vy:random(-1,1)
 
 }
 
-function field(x,y,time){
+function chladniCircular(x,y){
 
-let dx=(x-cx)/radius
-let dy=(y-cy)/radius
+let cx=0.5
+let cy=0.5
+
+let dx=x-cx
+let dy=y-cy
 
 let r=sqrt(dx*dx+dy*dy)
 let theta=atan2(dy,dx)
 
-/* base chladni */
+let radial = sin(radialMode * PI * r * 4)
+let angular = cos(angularMode * theta)
 
-let base = sin(n*PI*r)*cos(m*theta)
-
-/* onda suave */
-
-let wave = sin(10*r - time*2)
-
-return base + wave*0.2
+return radial * angular
 
 }
 
@@ -229,95 +176,79 @@ function draw(){
 
 background(0)
 
+/* só anima depois que iniciar */
+if(!started) return
+
 motion=parseFloat(document.getElementById("motion").value)
 
 let newCount=parseInt(document.getElementById("density").value)
 
-if(newCount!==particleCount){
+if(newCount!=particleCount){
+
 particleCount=newCount
 createParticles()
+
 }
 
-/* 🎵 análise de áudio */
+radialMode=lerp(radialMode,targetRadial,0.02)
+angularMode=lerp(angularMode,targetAngular,0.02)
 
-let time = millis()*0.001
-
-if(started){
+if(isPlaying){
 
 fft.analyze()
 
-let bass = fft.getEnergy("bass")
+let bass=fft.getEnergy("bass")
 
-/* suaviza energia */
+if(bass>170 && millis()-lastChange>2600){
 
-energySmooth = lerp(energySmooth, bass, 0.2)
+targetRadial=int(random(2,7))
+targetAngular=int(random(2,12))
 
-/* detecta batida */
-
-if(bass > 180 && frameCount % 20 === 0){
-
-m = int(random(2,7))
-n = int(random(2,6))
+lastChange=millis()
 
 }
 
 }
 
-/* partículas */
+translate(width/2,height/2)
 
 for(let p of particles){
 
-let dx=p.x-cx
-let dy=p.y-cy
+let dx=p.x-0.5
+let dy=p.y-0.5
 
 let dist=sqrt(dx*dx+dy*dy)
 
-if(dist>radius){
+if(dist>0.5){
 
-let a=atan2(dy,dx)
-p.x = cx + cos(a)*radius
-p.y = cy + sin(a)*radius
+let angle=atan2(dy,dx)
+
+p.x=0.5 + cos(angle)*0.49
+p.y=0.5 + sin(angle)*0.49
 
 }
 
-let v=field(p.x,p.y,time)
+let v=chladniCircular(p.x,p.y)
 
-/* força reage à música */
+let fx = -v * dx * 0.04
+let fy = -v * dy * 0.04
 
-let force = 0.03 + energySmooth*0.0003
+p.vx += fx
+p.vy += fy
 
-p.vx += -v * dx * force
-p.vy += -v * dy * force
-
-p.vx *= 0.95
-p.vy *= 0.95
+p.vx *= 0.97
+p.vy *= 0.97
 
 p.x += p.vx + random(-motion,motion)
 p.y += p.vy + random(-motion,motion)
 
-point(p.x,p.y)
+point((p.x-0.5)*plateRadius*2,(p.y-0.5)*plateRadius*2)
 
 }
 
 }
-
-/* 🚀 inicia UMA VEZ */
 
 async function startExperience(){
-
-if(started) return
-
-started = true
-
-/* fecha popup */
-
-popup.style.opacity="0"
-
-setTimeout(()=>{
-popup.style.display="none"
-},600)
-
-/* áudio */
 
 let ctx=getAudioContext()
 
@@ -328,13 +259,21 @@ await ctx.resume()
 song.loop()
 fft.setInput(song)
 
+isPlaying=true
+started=true
+
+/* esconder frase */
+document.getElementById("intro").classList.add("hidden")
+
 }
 
 document.body.addEventListener("pointerdown",(e)=>{
 
 if(e.target.closest("#controls")) return
 
+if(!started){
 startExperience()
+}
 
 })
 
@@ -342,11 +281,7 @@ function windowResized(){
 
 resizeCanvas(window.innerWidth,window.innerHeight)
 
-cx = width/2
-cy = height/2
-radius = min(width,height)*0.45
-
-createParticles()
+plateRadius=min(width,height)*0.45
 
 }
 
