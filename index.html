@@ -57,7 +57,7 @@ color:white;
 font-size:18px;
 text-align:center;
 opacity:1;
-transition:opacity 0.8s ease;
+transition:opacity 0.6s ease;
 pointer-events:none;
 }
 
@@ -106,9 +106,8 @@ let lastChange=0
 
 let plateRadius
 
-/* controle de fade */
-let simAlpha = 0
-let targetAlpha = 0
+let simAlpha=0
+let targetAlpha=0
 
 function preload(){
 song = loadSound("song.mp3")
@@ -167,10 +166,10 @@ function draw(){
 
 background(0)
 
-/* fade da simulação */
-simAlpha = lerp(simAlpha, targetAlpha, 0.03)
+/* fade */
+simAlpha = lerp(simAlpha, targetAlpha, 0.04)
 
-if(!started && simAlpha < 1) return
+if(!started) return
 
 motion=parseFloat(document.getElementById("motion").value)
 
@@ -200,8 +199,7 @@ lastChange=millis()
 
 translate(width/2,height/2)
 
-/* aplica fade nos pontos */
-stroke(230,210,160, 255 * simAlpha)
+stroke(230,210,160,255*simAlpha)
 
 for(let p of particles){
 
@@ -233,13 +231,10 @@ point((p.x-0.5)*plateRadius*2,(p.y-0.5)*plateRadius*2)
 
 }
 
-async function handleInteraction(){
+function handleInteraction(){
 
-let ctx=getAudioContext()
-
-if(ctx.state!=="running"){
-await ctx.resume()
-}
+/* resolve audio imediatamente */
+userStartAudio()
 
 /* primeira vez */
 if(!started){
@@ -250,11 +245,11 @@ song.setLoop(true)
 song.play()
 fft.setInput(song)
 
-/* fade out texto */
-document.getElementById("intro").style.opacity = 0
+/* texto some */
+document.getElementById("intro").style.opacity=0
 
-/* fade in simulação */
-targetAlpha = 1
+/* simulação entra */
+targetAlpha=1
 
 return
 }
