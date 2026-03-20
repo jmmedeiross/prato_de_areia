@@ -14,10 +14,9 @@ body{
 margin:0;
 background:black;
 overflow:hidden;
-font-family:Arial;
 }
 
-/* CONTROLES RESPONSIVOS */
+/* CONTROLES */
 
 #controls{
 
@@ -26,61 +25,18 @@ bottom:20px;
 right:20px;
 
 background:rgba(255,255,255,0.06);
-backdrop-filter:blur(12px);
+backdrop-filter:blur(10px);
 
-padding:14px;
-border-radius:14px;
+padding:12px;
+border-radius:12px;
 
 color:white;
+font-size:12px;
 
-}
-
-/* mobile */
-
-@media (max-width:600px){
-
-#controls{
-bottom:10px;
-right:10px;
-padding:10px;
 }
 
 input[type=range]{
-width:150px;
-}
-
-}
-
-/* desktop */
-
-@media (min-width:601px){
-
-input[type=range]{
-width:120px;
-}
-
-}
-
-#controls div{
-margin-bottom:10px;
-}
-
-input[type=range]{
-
--webkit-appearance:none;
-height:2px;
-background:rgba(255,255,255,0.4);
-
-}
-
-input[type=range]::-webkit-slider-thumb{
-
--webkit-appearance:none;
-width:14px;
-height:14px;
-border-radius:50%;
-background:white;
-
+width:130px;
 }
 
 </style>
@@ -93,31 +49,27 @@ background:white;
 
 <div>
 Areia<br>
-<input type="range" id="density" min="20000" max="90000" value="50000">
+<input type="range" id="density" min="8000" max="30000" value="16000">
 </div>
 
 <div>
 Movimento<br>
-<input type="range" id="motion" min="0.00001" max="0.0004" step="0.00001" value="0.0001">
+<input type="range" id="motion" min="0.00005" max="0.0005" step="0.00005" value="0.0002">
 </div>
 
 </div>
 
 <script>
 
-let song
-let fft
+let song, fft
 
 let particles=[]
-let particleCount=50000
+let particleCount=16000
 
-let motion=0.0001
+let motion=0.0002
 
-let m=4
-let n=2
-
-let targetM=4
-let targetN=2
+let m=4, n=3
+let targetM=4, targetN=3
 
 let isPlaying=false
 let lastChange=0
@@ -139,6 +91,7 @@ plateRadius=min(width,height)*0.45
 createParticles()
 
 stroke(230,210,160)
+strokeWeight(1.2) // 🔥 importante pra aparecer
 
 }
 
@@ -156,8 +109,8 @@ particles.push({
 x:0.5 + cos(angle)*r,
 y:0.5 + sin(angle)*r,
 
-vx:random(-0.0005,0.0005),
-vy:random(-0.0005,0.0005)
+vx:random(-0.0003,0.0003),
+vy:random(-0.0003,0.0003)
 
 })
 
@@ -165,26 +118,7 @@ vy:random(-0.0005,0.0005)
 
 }
 
-/* Bessel approximation */
-
-function bessel(m,x){
-
-let sum=0
-
-for(let k=0;k<8;k++){
-
-let num=pow(-1,k)*pow(x/2,(2*k+m))
-let den=factorial(k)*factorial(k+m)
-
-sum+=num/den
-
-}
-
-return sum
-
-}
-
-function chladniMode(x,y){
+function chladni(x,y){
 
 let dx=x-0.5
 let dy=y-0.5
@@ -192,8 +126,8 @@ let dy=y-0.5
 let r=sqrt(dx*dx+dy*dy)
 let theta=atan2(dy,dx)
 
-let radial=bessel(m,r*10*n)
-let angular=cos(m*theta)
+let radial = sin(n*PI*r*4)
+let angular = cos(m*theta)
 
 return radial*angular
 
@@ -225,10 +159,10 @@ fft.analyze()
 
 let bass=fft.getEnergy("bass")
 
-if(bass>170 && millis()-lastChange>3000){
+if(bass>170 && millis()-lastChange>2500){
 
-targetM=int(random(1,8))
-targetN=int(random(1,6))
+targetM=int(random(2,7))
+targetN=int(random(2,6))
 
 lastChange=millis()
 
@@ -238,18 +172,14 @@ lastChange=millis()
 
 translate(width/2,height/2)
 
-/* simulação granular */
-
-for(let i=0;i<particles.length;i++){
-
-let p=particles[i]
+for(let p of particles){
 
 let dx=p.x-0.5
 let dy=p.y-0.5
 
 let dist=sqrt(dx*dx+dy*dy)
 
-/* limite do prato */
+/* limite circular invisível */
 
 if(dist>0.5){
 
@@ -259,43 +189,20 @@ p.y=0.5+sin(a)*0.49
 
 }
 
-/* interação com vizinhos (areia real) */
-
-for(let j=i+1;j<i+4 && j<particles.length;j++){
-
-let q=particles[j]
-
-let dx2=p.x-q.x
-let dy2=p.y-q.y
-
-let d=sqrt(dx2*dx2+dy2*dy2)
-
-if(d<0.005){
-
-let repulse=(0.005-d)*0.02
-
-p.vx+=dx2*repulse
-p.vy+=dy2*repulse
-
-q.vx-=dx2*repulse
-q.vy-=dy2*repulse
-
-}
-
-}
-
 /* campo vibracional */
 
-let v=chladniMode(p.x,p.y)
+let v=chladni(p.x,p.y)
 
-let fx=-v*(p.x-0.5)*0.1
-let fy=-v*(p.y-0.5)*0.1
+/* força estável */
+
+let fx=-v*dx*0.05
+let fy=-v*dy*0.05
 
 p.vx+=fx
 p.vy+=fy
 
-p.vx*=0.97
-p.vy*=0.97
+p.vx*=0.96
+p.vy*=0.96
 
 p.x+=p.vx+random(-motion,motion)
 p.y+=p.vy+random(-motion,motion)
@@ -305,6 +212,8 @@ point((p.x-0.5)*plateRadius*2,(p.y-0.5)*plateRadius*2)
 }
 
 }
+
+/* áudio */
 
 async function toggleMusic(){
 
