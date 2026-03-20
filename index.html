@@ -17,7 +17,7 @@ overflow:hidden;
 font-family:Arial;
 }
 
-/* CONTROLES - AGORA NO CANTO INFERIOR DIREITO */
+/* CONTROLES */
 #controls{
 position:fixed;
 bottom:20px;
@@ -49,7 +49,7 @@ border-radius:50%;
 background:white;
 }
 
-/* FRASE INICIAL */
+/* FRASE */
 #intro{
 position:fixed;
 top:50%;
@@ -176,7 +176,7 @@ function draw(){
 
 background(0)
 
-/* só anima depois que iniciar */
+/* só começa depois do primeiro toque */
 if(!started) return
 
 motion=parseFloat(document.getElementById("motion").value)
@@ -184,10 +184,8 @@ motion=parseFloat(document.getElementById("motion").value)
 let newCount=parseInt(document.getElementById("density").value)
 
 if(newCount!=particleCount){
-
 particleCount=newCount
 createParticles()
-
 }
 
 radialMode=lerp(radialMode,targetRadial,0.02)
@@ -248,7 +246,7 @@ point((p.x-0.5)*plateRadius*2,(p.y-0.5)*plateRadius*2)
 
 }
 
-async function startExperience(){
+async function handleInteraction(){
 
 let ctx=getAudioContext()
 
@@ -256,14 +254,33 @@ if(ctx.state!=="running"){
 await ctx.resume()
 }
 
+/* primeira interação */
+if(!started){
+
+started=true
+isPlaying=true
+
 song.loop()
 fft.setInput(song)
 
-isPlaying=true
-started=true
-
-/* esconder frase */
 document.getElementById("intro").classList.add("hidden")
+
+return
+}
+
+/* toggle */
+if(isPlaying){
+
+song.pause()
+isPlaying=false
+
+}else{
+
+song.loop()
+fft.setInput(song)
+isPlaying=true
+
+}
 
 }
 
@@ -271,9 +288,7 @@ document.body.addEventListener("pointerdown",(e)=>{
 
 if(e.target.closest("#controls")) return
 
-if(!started){
-startExperience()
-}
+handleInteraction()
 
 })
 
