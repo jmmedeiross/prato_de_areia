@@ -36,29 +36,19 @@ font-size:11px;
 
 }
 
-/* sliders */
-
 input[type=range]{
-
 -webkit-appearance:none;
 width:130px;
 height:2px;
-
 background:rgba(255,255,255,0.25);
-outline:none;
-
 }
 
 input[type=range]::-webkit-slider-thumb{
-
 -webkit-appearance:none;
-
 width:12px;
 height:12px;
-
 border-radius:50%;
 background:white;
-
 }
 
 /* POPUP */
@@ -101,8 +91,6 @@ line-height:1.4;
 
 }
 
-/* texto adaptativo */
-
 .mobile{ display:none; }
 
 @media (max-width:600px){
@@ -128,13 +116,12 @@ right:10px;
 <div id="popup">
 <div class="popup-box">
 
-<div class="popup-text desktop">
-clique na tela para iniciar experiência
+<div class="desktop">
+Clique na tela para iniciar experiência
 </div>
 
-<div class="popup-text mobile">
-toque na tela para iniciar experiência<br>
-ative o som (modo silencioso desativado)
+<div class="mobile">
+Ative o som e toque na tela para iniciar experiência.<br>
 </div>
 
 </div>
@@ -146,12 +133,12 @@ ative o som (modo silencioso desativado)
 
 <div>
 Areia<br>
-<input type="range" id="density" min="3000" max="20000" value="8000">
+<input type="range" id="density" min="3000" max="20000" value="9000">
 </div>
 
 <div>
 Movimento<br>
-<input type="range" id="motion" min="0.1" max="2" step="0.1" value="0.5">
+<input type="range" id="motion" min="0.1" max="2" step="0.1" value="0.6">
 </div>
 
 </div>
@@ -159,16 +146,21 @@ Movimento<br>
 <script>
 
 let particles=[]
-let particleCount=8000
+let particleCount=9000
 
-let motion=0.5
+let motion=0.6
 
 let cx, cy, radius
 
 let song, fft
-let isPlaying=false
+let started=false
 
 let popup = document.getElementById("popup")
+
+let m=4
+let n=3
+
+let energySmooth=0
 
 function preload(){
 song = loadSound("song.mp3")
@@ -182,12 +174,12 @@ cx = width/2
 cy = height/2
 radius = min(width,height)*0.45
 
-fft = new p5.FFT(0.8,256)
+fft = new p5.FFT(0.85,512)
 
 createParticles()
 
 stroke(230,210,160)
-strokeWeight(1.4)
+strokeWeight(1.3)
 
 }
 
@@ -213,7 +205,7 @@ vy:random(-1,1)
 
 }
 
-function field(x,y){
+function field(x,y,time){
 
 let dx=(x-cx)/radius
 let dy=(y-cy)/radius
@@ -221,7 +213,15 @@ let dy=(y-cy)/radius
 let r=sqrt(dx*dx+dy*dy)
 let theta=atan2(dy,dx)
 
-return sin(4*PI*r)*cos(6*theta)
+/* base chladni */
+
+let base = sin(n*PI*r)*cos(m*theta)
+
+/* onda suave */
+
+let wave = sin(10*r - time*2)
+
+return base + wave*0.2
 
 }
 
@@ -238,9 +238,32 @@ particleCount=newCount
 createParticles()
 }
 
-if(isPlaying){
+/* 🎵 análise de áudio */
+
+let time = millis()*0.001
+
+if(started){
+
 fft.analyze()
+
+let bass = fft.getEnergy("bass")
+
+/* suaviza energia */
+
+energySmooth = lerp(energySmooth, bass, 0.2)
+
+/* detecta batida */
+
+if(bass > 180 && frameCount % 20 === 0){
+
+m = int(random(2,7))
+n = int(random(2,6))
+
 }
+
+}
+
+/* partículas */
 
 for(let p of particles){
 
@@ -248,8 +271,6 @@ let dx=p.x-cx
 let dy=p.y-cy
 
 let dist=sqrt(dx*dx+dy*dy)
-
-/* limite do prato invisível */
 
 if(dist>radius){
 
@@ -259,12 +280,14 @@ p.y = cy + sin(a)*radius
 
 }
 
-/* força vibracional */
+let v=field(p.x,p.y,time)
 
-let v=field(p.x,p.y)
+/* força reage à música */
 
-p.vx += -v * dx * 0.05
-p.vy += -v * dy * 0.05
+let force = 0.03 + energySmooth*0.0003
+
+p.vx += -v * dx * force
+p.vy += -v * dy * force
 
 p.vx *= 0.95
 p.vy *= 0.95
@@ -278,11 +301,15 @@ point(p.x,p.y)
 
 }
 
-/* áudio + popup */
+/* 🚀 inicia UMA VEZ */
 
 async function startExperience(){
 
-if(popup){
+if(started) return
+
+started = true
+
+/* fecha popup */
 
 popup.style.opacity="0"
 
@@ -290,9 +317,7 @@ setTimeout(()=>{
 popup.style.display="none"
 },600)
 
-popup=null
-
-}
+/* áudio */
 
 let ctx=getAudioContext()
 
@@ -300,18 +325,8 @@ if(ctx.state!=="running"){
 await ctx.resume()
 }
 
-if(!isPlaying){
-
 song.loop()
 fft.setInput(song)
-isPlaying=true
-
-}else{
-
-song.pause()
-isPlaying=false
-
-}
 
 }
 
