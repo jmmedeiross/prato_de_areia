@@ -9,36 +9,24 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.sound.min.js"></script>
 
 <style>
-
 body{
 margin:0;
 background:black;
 overflow:hidden;
 }
 
-/* CONTROLES */
-
 #controls{
-
 position:fixed;
 bottom:20px;
 right:20px;
-
-background:rgba(255,255,255,0.06);
-backdrop-filter:blur(10px);
-
+background:rgba(255,255,255,0.08);
 padding:12px;
 border-radius:12px;
-
 color:white;
 font-size:12px;
-
 }
 
-input[type=range]{
-width:130px;
-}
-
+input{ width:120px; }
 </style>
 
 </head>
@@ -46,35 +34,24 @@ width:130px;
 <body>
 
 <div id="controls">
-
-<div>
 Areia<br>
-<input type="range" id="density" min="8000" max="30000" value="16000">
-</div>
-
-<div>
+<input type="range" id="density" min="3000" max="20000" value="8000">
+<br><br>
 Movimento<br>
-<input type="range" id="motion" min="0.00005" max="0.0005" step="0.00005" value="0.0002">
-</div>
-
+<input type="range" id="motion" min="0.1" max="2" step="0.1" value="0.5">
 </div>
 
 <script>
 
-let song, fft
-
 let particles=[]
-let particleCount=16000
+let particleCount=8000
 
-let motion=0.0002
+let motion=0.5
 
-let m=4, n=3
-let targetM=4, targetN=3
+let cx, cy, radius
 
+let song, fft
 let isPlaying=false
-let lastChange=0
-
-let plateRadius
 
 function preload(){
 song = loadSound("song.mp3")
@@ -84,14 +61,16 @@ function setup(){
 
 createCanvas(window.innerWidth,window.innerHeight)
 
-fft = new p5.FFT(0.8,256)
+cx = width/2
+cy = height/2
+radius = min(width,height)*0.45
 
-plateRadius=min(width,height)*0.45
+fft = new p5.FFT(0.8,256)
 
 createParticles()
 
 stroke(230,210,160)
-strokeWeight(1.2) // 🔥 importante pra aparecer
+strokeWeight(1.5)
 
 }
 
@@ -101,16 +80,15 @@ particles=[]
 
 for(let i=0;i<particleCount;i++){
 
-let angle=random(TWO_PI)
-let r=sqrt(random())*0.5
+let a=random(TWO_PI)
+let r=sqrt(random())*radius
 
 particles.push({
 
-x:0.5 + cos(angle)*r,
-y:0.5 + sin(angle)*r,
-
-vx:random(-0.0003,0.0003),
-vy:random(-0.0003,0.0003)
+x:cx + cos(a)*r,
+y:cy + sin(a)*r,
+vx:random(-1,1),
+vy:random(-1,1)
 
 })
 
@@ -118,18 +96,17 @@ vy:random(-0.0003,0.0003)
 
 }
 
-function chladni(x,y){
+/* padrão chladni simples */
 
-let dx=x-0.5
-let dy=y-0.5
+function field(x,y){
+
+let dx=(x-cx)/radius
+let dy=(y-cy)/radius
 
 let r=sqrt(dx*dx+dy*dy)
 let theta=atan2(dy,dx)
 
-let radial = sin(n*PI*r*4)
-let angular = cos(m*theta)
-
-return radial*angular
+return sin(4*PI*r)*cos(6*theta)
 
 }
 
@@ -141,73 +118,50 @@ motion=parseFloat(document.getElementById("motion").value)
 
 let newCount=parseInt(document.getElementById("density").value)
 
-if(newCount!=particleCount){
-
+if(newCount!==particleCount){
 particleCount=newCount
 createParticles()
-
 }
-
-/* transição suave */
-
-m=lerp(m,targetM,0.02)
-n=lerp(n,targetN,0.02)
 
 if(isPlaying){
-
 fft.analyze()
-
-let bass=fft.getEnergy("bass")
-
-if(bass>170 && millis()-lastChange>2500){
-
-targetM=int(random(2,7))
-targetN=int(random(2,6))
-
-lastChange=millis()
-
 }
 
-}
-
-translate(width/2,height/2)
+/* partículas */
 
 for(let p of particles){
 
-let dx=p.x-0.5
-let dy=p.y-0.5
+let dx=p.x-cx
+let dy=p.y-cy
 
 let dist=sqrt(dx*dx+dy*dy)
 
-/* limite circular invisível */
+/* mantém dentro do círculo */
 
-if(dist>0.5){
+if(dist>radius){
 
 let a=atan2(dy,dx)
-p.x=0.5+cos(a)*0.49
-p.y=0.5+sin(a)*0.49
+p.x = cx + cos(a)*radius
+p.y = cy + sin(a)*radius
 
 }
 
-/* campo vibracional */
+/* força vibracional */
 
-let v=chladni(p.x,p.y)
+let v=field(p.x,p.y)
 
-/* força estável */
+p.vx += -v * dx * 0.05
+p.vy += -v * dy * 0.05
 
-let fx=-v*dx*0.05
-let fy=-v*dy*0.05
+/* movimento */
 
-p.vx+=fx
-p.vy+=fy
+p.vx *= 0.95
+p.vy *= 0.95
 
-p.vx*=0.96
-p.vy*=0.96
+p.x += p.vx + random(-motion,motion)
+p.y += p.vy + random(-motion,motion)
 
-p.x+=p.vx+random(-motion,motion)
-p.y+=p.vy+random(-motion,motion)
-
-point((p.x-0.5)*plateRadius*2,(p.y-0.5)*plateRadius*2)
+point(p.x,p.y)
 
 }
 
@@ -224,16 +178,12 @@ await ctx.resume()
 }
 
 if(isPlaying){
-
 song.pause()
 isPlaying=false
-
 }else{
-
 song.loop()
 fft.setInput(song)
 isPlaying=true
-
 }
 
 }
@@ -250,7 +200,11 @@ function windowResized(){
 
 resizeCanvas(window.innerWidth,window.innerHeight)
 
-plateRadius=min(width,height)*0.45
+cx = width/2
+cy = height/2
+radius = min(width,height)*0.45
+
+createParticles()
 
 }
 
