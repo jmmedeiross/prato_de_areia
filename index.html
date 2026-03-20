@@ -57,7 +57,7 @@ color:white;
 font-size:18px;
 text-align:center;
 opacity:1;
-transition:opacity 0.6s ease;
+transition:opacity 0.8s ease;
 pointer-events:none;
 }
 
@@ -105,6 +105,10 @@ let started=false
 let lastChange=0
 
 let plateRadius
+
+/* controle de fade */
+let simAlpha = 0
+let targetAlpha = 0
 
 function preload(){
 song = loadSound("song.mp3")
@@ -163,7 +167,10 @@ function draw(){
 
 background(0)
 
-if(!started) return
+/* fade da simulação */
+simAlpha = lerp(simAlpha, targetAlpha, 0.03)
+
+if(!started && simAlpha < 1) return
 
 motion=parseFloat(document.getElementById("motion").value)
 
@@ -177,7 +184,6 @@ createParticles()
 radialMode=lerp(radialMode,targetRadial,0.02)
 angularMode=lerp(angularMode,targetAngular,0.02)
 
-/* só reage ao som se estiver tocando */
 if(song.isPlaying()){
 
 fft.analyze()
@@ -193,6 +199,9 @@ lastChange=millis()
 }
 
 translate(width/2,height/2)
+
+/* aplica fade nos pontos */
+stroke(230,210,160, 255 * simAlpha)
 
 for(let p of particles){
 
@@ -241,13 +250,16 @@ song.setLoop(true)
 song.play()
 fft.setInput(song)
 
-/* força sumir */
+/* fade out texto */
 document.getElementById("intro").style.opacity = 0
+
+/* fade in simulação */
+targetAlpha = 1
 
 return
 }
 
-/* toggle real */
+/* toggle */
 if(song.isPlaying()){
 song.pause()
 }else{
