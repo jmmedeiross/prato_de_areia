@@ -48,6 +48,8 @@ border-radius:50%;
 background:white;
 }
 
+/* intro */
+
 #intro{
 position:fixed;
 top:50%;
@@ -61,6 +63,14 @@ transition:opacity 0.6s ease;
 pointer-events:none;
 }
 
+.arabic{
+color:rgb(230,210,160);
+font-size:48px;
+display:block;
+margin-bottom:10px;
+transition:transform 0.1s linear;
+}
+
 </style>
 
 </head>
@@ -68,7 +78,8 @@ pointer-events:none;
 <body>
 
 <div id="intro">
-Ative o som e toque na tela para iniciar experiência.
+<span id="arabic" class="arabic">ن</span>
+Ative o som e toque na tela para iniciar experiencia.
 </div>
 
 <div id="controls">
@@ -166,8 +177,24 @@ function draw(){
 
 background(0)
 
-/* fade */
+/* fade simulação */
 simAlpha = lerp(simAlpha, targetAlpha, 0.04)
+
+/* pulso da letra */
+let arabicEl = document.getElementById("arabic")
+
+let level = 0
+
+if(song.isPlaying()){
+fft.analyze()
+level = fft.getEnergy("bass") / 255
+}else{
+/* idle pulse */
+level = 0.2 + sin(frameCount * 0.05) * 0.05
+}
+
+let scale = 1 + level * 0.6
+arabicEl.style.transform = `scale(${scale})`
 
 if(!started) return
 
@@ -184,8 +211,6 @@ radialMode=lerp(radialMode,targetRadial,0.02)
 angularMode=lerp(angularMode,targetAngular,0.02)
 
 if(song.isPlaying()){
-
-fft.analyze()
 
 let bass=fft.getEnergy("bass")
 
@@ -233,10 +258,8 @@ point((p.x-0.5)*plateRadius*2,(p.y-0.5)*plateRadius*2)
 
 function handleInteraction(){
 
-/* resolve audio imediatamente */
 userStartAudio()
 
-/* primeira vez */
 if(!started){
 
 started=true
@@ -245,16 +268,13 @@ song.setLoop(true)
 song.play()
 fft.setInput(song)
 
-/* texto some */
 document.getElementById("intro").style.opacity=0
 
-/* simulação entra */
 targetAlpha=1
 
 return
 }
 
-/* toggle */
 if(song.isPlaying()){
 song.pause()
 }else{
