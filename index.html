@@ -9,36 +9,151 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.sound.min.js"></script>
 
 <style>
+
 body{
 margin:0;
 background:black;
 overflow:hidden;
+font-family:-apple-system,BlinkMacSystemFont,Arial;
 }
 
+/* CONTROLES */
+
 #controls{
+
 position:fixed;
 bottom:20px;
 right:20px;
-background:rgba(255,255,255,0.08);
-padding:12px;
-border-radius:12px;
+
+background:rgba(255,255,255,0.06);
+backdrop-filter:blur(16px);
+
+padding:14px 16px;
+border-radius:16px;
+
 color:white;
-font-size:12px;
+font-size:11px;
+
 }
 
-input{ width:120px; }
+/* sliders */
+
+input[type=range]{
+
+-webkit-appearance:none;
+width:130px;
+height:2px;
+
+background:rgba(255,255,255,0.25);
+outline:none;
+
+}
+
+input[type=range]::-webkit-slider-thumb{
+
+-webkit-appearance:none;
+
+width:12px;
+height:12px;
+
+border-radius:50%;
+background:white;
+
+}
+
+/* POPUP */
+
+#popup{
+
+position:fixed;
+top:0;
+left:0;
+
+width:100%;
+height:100%;
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+background:rgba(0,0,0,0.4);
+backdrop-filter:blur(10px);
+
+transition:opacity 0.6s;
+
+z-index:10;
+
+}
+
+.popup-box{
+
+background:rgba(255,255,255,0.05);
+backdrop-filter:blur(20px);
+
+padding:20px 28px;
+border-radius:18px;
+
+color:white;
+text-align:center;
+
+font-size:14px;
+line-height:1.4;
+
+}
+
+/* texto adaptativo */
+
+.mobile{ display:none; }
+
+@media (max-width:600px){
+
+.mobile{ display:block; }
+.desktop{ display:none; }
+
+#controls{
+bottom:10px;
+right:10px;
+}
+
+}
+
 </style>
 
 </head>
 
 <body>
 
+<!-- POPUP -->
+
+<div id="popup">
+<div class="popup-box">
+
+<div class="popup-text desktop">
+clique na tela para iniciar experiência
+</div>
+
+<div class="popup-text mobile">
+toque na tela para iniciar experiência<br>
+ative o som (modo silencioso desativado)
+</div>
+
+</div>
+</div>
+
+<!-- CONTROLES -->
+
 <div id="controls">
+
+<div>
 Areia<br>
 <input type="range" id="density" min="3000" max="20000" value="8000">
-<br><br>
+</div>
+
+<div>
 Movimento<br>
 <input type="range" id="motion" min="0.1" max="2" step="0.1" value="0.5">
+</div>
+
 </div>
 
 <script>
@@ -52,6 +167,8 @@ let cx, cy, radius
 
 let song, fft
 let isPlaying=false
+
+let popup = document.getElementById("popup")
 
 function preload(){
 song = loadSound("song.mp3")
@@ -70,7 +187,7 @@ fft = new p5.FFT(0.8,256)
 createParticles()
 
 stroke(230,210,160)
-strokeWeight(1.5)
+strokeWeight(1.4)
 
 }
 
@@ -95,8 +212,6 @@ vy:random(-1,1)
 }
 
 }
-
-/* padrão chladni simples */
 
 function field(x,y){
 
@@ -127,8 +242,6 @@ if(isPlaying){
 fft.analyze()
 }
 
-/* partículas */
-
 for(let p of particles){
 
 let dx=p.x-cx
@@ -136,7 +249,7 @@ let dy=p.y-cy
 
 let dist=sqrt(dx*dx+dy*dy)
 
-/* mantém dentro do círculo */
+/* limite do prato invisível */
 
 if(dist>radius){
 
@@ -153,8 +266,6 @@ let v=field(p.x,p.y)
 p.vx += -v * dx * 0.05
 p.vy += -v * dy * 0.05
 
-/* movimento */
-
 p.vx *= 0.95
 p.vy *= 0.95
 
@@ -167,9 +278,21 @@ point(p.x,p.y)
 
 }
 
-/* áudio */
+/* áudio + popup */
 
-async function toggleMusic(){
+async function startExperience(){
+
+if(popup){
+
+popup.style.opacity="0"
+
+setTimeout(()=>{
+popup.style.display="none"
+},600)
+
+popup=null
+
+}
 
 let ctx=getAudioContext()
 
@@ -177,13 +300,17 @@ if(ctx.state!=="running"){
 await ctx.resume()
 }
 
-if(isPlaying){
-song.pause()
-isPlaying=false
-}else{
+if(!isPlaying){
+
 song.loop()
 fft.setInput(song)
 isPlaying=true
+
+}else{
+
+song.pause()
+isPlaying=false
+
 }
 
 }
@@ -192,7 +319,7 @@ document.body.addEventListener("pointerdown",(e)=>{
 
 if(e.target.closest("#controls")) return
 
-toggleMusic()
+startExperience()
 
 })
 
